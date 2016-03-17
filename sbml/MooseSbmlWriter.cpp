@@ -88,6 +88,7 @@ int moose::SbmlWriter::write( string target , string filepath)
   createModel( filename,sbmlDoc,target );
   //cout << " sbmlDoc " <<sbmlDoc.toSBML()<<endl;
   SBMLok  = validateModel( &sbmlDoc );
+  SBMLok = true;
   if ( SBMLok ) 
   {
     return writeModel( &sbmlDoc, filepath );
@@ -378,6 +379,7 @@ void moose::SbmlWriter::createModel(string filename,SBMLDocument& sbmlDoc,string
 	    } //itrp
 	  
 	  vector< ObjId > Compt_Reac;
+	  bool simulationType = true;
 	  wildcardFind(comptPath+"/##[ISA=ReacBase]",Compt_Reac);
 	  //vector< Id > Compt_Reac = LookupField< string, vector< Id > >::get(*itr, "neighbors", "remeshReacs" );
 	  for (vector <ObjId> :: iterator itrR= Compt_Reac.begin();itrR != Compt_Reac.end();itrR++)
@@ -385,6 +387,7 @@ void moose::SbmlWriter::createModel(string filename,SBMLDocument& sbmlDoc,string
 	      Reaction* reaction;
 	      reaction = cremodel_->createReaction(); 
 	      string cleanReacname = cleanNameId(*itrR,index);
+	      string SuperReacname = cleanReacname;
 	      string recClass = Field<string> :: get(*itrR,"className");
 	      string pathR = Field<string> :: get(*itrR,"path");
 	      ostringstream reactAnno,reactGpname,reactxyCord;
@@ -434,47 +437,123 @@ void moose::SbmlWriter::createModel(string filename,SBMLDocument& sbmlDoc,string
 	      objname = nameString(objname);
 
 	      KineticLaw* kl;
-	      // Reaction 
-	      reaction->setId( cleanReacname);
-	      reaction->setName( objname);
-	      double Kf = Field<double>::get(*itrR,"numKf");
-	      double Kb = Field<double>::get(*itrR,"numKb");
+	      if (simulationType)
+	      { cout << "React Entered ";
+	      	//If its Stoichic simulation reaction are written 
+	      	//A+B --kf--> C (irreversible)KineticLaw = A*B*kf
+	      	//c --kf (Kb)--> A+B (irreversible) KineticLaw = c*kf
+	       	string fReacname = cleanReacname + "_" + "forward";
+	      	reaction->setId( fReacname);
+	      	reaction->setName( objname);
+	      	double Kf = Field<double>::get(*itrR,"numKf");
+	      	reaction->setReversible( false );
+	       	reaction->setFast( false );
+	      	// Reaction's Reactant are Written 
+	      	ostringstream rate_law,kfparm,kbparm;
+	      	double rct_order = 0.0;
+	      	double prd_order =0.0;
+	      	kfparm << cleanReacname << "_" << "Kf";
+	      	rate_law << kfparm.str();
+	      	getSubPrd(reaction,"sub","",*itrR,index,rate_law,rct_order,true,recClass);
+	      	getSubPrd(reaction,"prd","",*itrR,index,rate_law,prd_order,false,recClass);
+	      	kl = reaction->createKineticLaw();	
+	      	kl->setFormula( rate_law.str() );
+	      	string unit=parmUnit( rct_order-1 );
+	      	double rvalue,pvalue;
+	       	rvalue = Kf;
+	       	printParameters( kl,kfparm.str(),rvalue,unit ); 
+	      	// This function print out reactants and update rate_law string 
+	      	//getSubPrd(reaction,"sub","",*itrR,index,rate_law,rct_order,true,recClass);
+	      	//double prd_order =0.0;
+	      	//kbparm << cleanReacname << "_" << "Kb";
+	      	//double Kb = Field<double>::get(*itrR,"numKb");
+	      	// This function print out product and update rate_law string  if kb != 0 
+	   //    	if ( Kb != 0.0 )
+	   //    	{	//rate_law << "-" << kbparm.str();
+	   //    		//cout << "rate_law " << rate_law.str();
+				// getSubPrd(reaction,"prd","",*itrR,index,rate_law,prd_order,true,recClass);
+	   //    	}
+	   //    	else
+			//getSubPrd(reaction,"prd","",*itrR,index,rate_law,prd_order,false,recClass);
 	      
-	      if (Kb == 0.0)
-		reaction->setReversible( false );
+	      	//kl = reaction->createKineticLaw();
+	  //     	kl->setFormula( rate_law.str() );
+	  //     	double rvalue,pvalue;
+	  //     	rvalue = Kf;
+	  //     	cout << " rct_order " << rct_order;
+	  //     	string unit=parmUnit( rct_order-1 );
+	  //     	printParameters( kl,kfparm.str(),rvalue,unit ); 
+	  // //     	if ( Kb != 0.0 ){
+			// // 	pvalue = Kb;
+			// // string unit=parmUnit( prd_order-1 );
+			// // printParameters( kl,kbparm.str(),pvalue,unit ); 
+	  // //     	}
+	  //     	ostringstream rate_law1,kfparm1,kbparm1;
+	      	
+	  //     	reaction = cremodel_->createReaction(); 
+	  //   	string bReacname = cleanReacname + "_" + "backward";
+	  //     	reaction->setId( bReacname);
+	      	
+	  //     	reaction->setName( objname);
+	  //     	reaction->setReversible( false );
+	  //      	reaction->setFast( false );
+	  //      	rate_law1 << cleanReacname << "_" << "Kb";
+	  //     	getSubPrdrevers(reaction,"prd","",*itrR,index,rate_law1,rct_order,true,recClass);
+	  //      	getSubPrdrevers(reaction,"sub","",*itrR,index,rate_law1,prd_order,false,recClass);
+	  //      	cout << "heree00000 " << rate_law1.str();
+	  //      	kl = reaction->createKineticLaw();
+	  //     	kl->setFormula( rate_law1.str() );
+	  //     	pvalue = Kb;
+			// //string unit1=parmUnit( rct_order-2 );
+			// //cout << "#### " << kbparm.str() << "unit 1" << unit1 << "$$$$$$$$$$$ "<<rct_order << endl;
+			// printParameters( kl,kbparm.str(),pvalue,unit); 
+	      }//simulationType == stoich
+
 	      else
-		reaction->setReversible( true );
-	      reaction->setFast( false );
-	      // Reaction's Reactant are Written 
-	      ostringstream rate_law,kfparm,kbparm;
-	      double rct_order = 0.0;
-	      kfparm << cleanReacname << "_" << "Kf";
-	      rate_law << kfparm.str();
+	      {
+	      	//If its regular simulation reaction are written as its
+	      	// Reaction 
+	      	reaction->setId( cleanReacname);
+	      	reaction->setName( objname);
+	      	double Kf = Field<double>::get(*itrR,"numKf");
+	      	double Kb = Field<double>::get(*itrR,"numKb");
 	      
-	      // This function print out reactants and update rate_law string 
-	      getSubPrd(reaction,"sub","",*itrR,index,rate_law,rct_order,true,recClass);
-	      double prd_order =0.0;
-	      kbparm << cleanReacname << "_" << "Kb";
+	      	if (Kb == 0.0)
+				reaction->setReversible( false );
+	      	else
+				reaction->setReversible( true );
+	      	reaction->setFast( false );
+	      	// Reaction's Reactant are Written 
+	      	ostringstream rate_law,kfparm,kbparm;
+	      	double rct_order = 0.0;
+	      	kfparm << cleanReacname << "_" << "Kf";
+	      	rate_law << kfparm.str();
 	      
-	      // This function print out product and update rate_law string  if kb != 0 
-	      if ( Kb != 0.0 ){
-		rate_law << "-" << kbparm.str();
-		getSubPrd(reaction,"prd","",*itrR,index,rate_law,prd_order,true,recClass);
-	      }
+	      	// This function print out reactants and update rate_law string 
+	      	getSubPrd(reaction,"sub","",*itrR,index,rate_law,rct_order,true,recClass);
+	      	double prd_order =0.0;
+	      	kbparm << cleanReacname << "_" << "Kb";
+	      
+	      	// This function print out product and update rate_law string  if kb != 0 
+	      	if ( Kb != 0.0 )
+	      	{	rate_law << "-" << kbparm.str();
+				getSubPrd(reaction,"prd","",*itrR,index,rate_law,prd_order,true,recClass);
+	      	}
 	      else
-		getSubPrd(reaction,"prd","",*itrR,index,rate_law,prd_order,false,recClass);
+			getSubPrd(reaction,"prd","",*itrR,index,rate_law,prd_order,false,recClass);
 	      
-	      kl = reaction->createKineticLaw();
-	      kl->setFormula( rate_law.str() );
-	      double rvalue,pvalue;
-	      rvalue = Kf;
-	      string unit=parmUnit( rct_order-1 );
-	      printParameters( kl,kfparm.str(),rvalue,unit ); 
-	      if ( Kb != 0.0 ){
-		pvalue = Kb;
-		string unit=parmUnit( prd_order-1 );
-		printParameters( kl,kbparm.str(),pvalue,unit ); 
-	      }
+	      	kl = reaction->createKineticLaw();
+	      	kl->setFormula( rate_law.str() );
+	      	double rvalue,pvalue;
+	      	rvalue = Kf;
+	      	string unit=parmUnit( rct_order-1 );
+	      	printParameters( kl,kfparm.str(),rvalue,unit ); 
+	      	if ( Kb != 0.0 ){
+				pvalue = Kb;
+			string unit=parmUnit( prd_order-1 );
+			printParameters( kl,kbparm.str(),pvalue,unit ); 
+	      	}
+	      }//simulationType != stoich
 	    }//itrR
 	  //     Reaction End 
 	      
@@ -751,6 +830,65 @@ string moose::SbmlWriter::cleanNameId(Id itrid,int  index)
     }
   string clean_nameid = idBeginWith(objname_id);
   return clean_nameid ;
+}
+void moose::SbmlWriter::getSubPrdrevers(Reaction* rec,string type,string enztype,Id itrRE, int index,ostringstream& rate_law,double &rct_order,bool w,string re_enClass)
+{
+  nameList_.clear();
+  SpeciesReference* spr;
+  ModifierSpeciesReference * mspr;
+  vector < Id > rct = LookupField <string,vector < Id> >::get(itrRE, "neighbors",type);
+  std::set < Id > rctprdUniq;
+  rctprdUniq.insert(rct.begin(),rct.end());
+  for (std::set < Id> :: iterator rRctPrd = rctprdUniq.begin();rRctPrd!=rctprdUniq.end();rRctPrd++)
+    { double stoch = count( rct.begin(),rct.end(),*rRctPrd );
+      string objname = Field<string> :: get(*rRctPrd,"name");
+      string cleanObjname = nameString(objname);
+      string clean_name = cleanNameId(*rRctPrd,index);
+      string objClass = Field<string> :: get(*rRctPrd,"className");
+
+      if (type == "sub" or (type == "enzOut" and enztype == "sub" ) or (type == "cplxDest" and enztype == "sub")) 
+	{ spr = rec->createProduct();
+	  spr->setSpecies(clean_name);
+	  spr->setStoichiometry( stoch );
+	  
+	  if (objClass == "BufPool")
+	    spr->setConstant( true );
+	  else
+	    spr->setConstant( false);
+	  
+	}
+      else if(type == "prd" or (type == "enzOut" and enztype == "prd" ) or (type == "cplxDest" and enztype == "prd"))
+	{
+	  spr = rec->createReactant();
+	  spr->setSpecies( clean_name );
+	  spr->setStoichiometry( stoch );
+	  if (objClass == "BufPool")
+	    spr->setConstant( true );
+	  else
+	    spr->setConstant( false);
+	}
+      else if(type == "enzDest")
+	{
+	  mspr = rec->createModifier();
+	  mspr->setSpecies(clean_name);
+	}
+      /* Updating list of object for annotation for Enzymatic reaction */
+	   if (re_enClass =="Enz" or re_enClass == "ZombieEnz")
+		nameList_.push_back	(clean_name);
+
+      /* Rate law is also updated in rate_law string */
+      //std::size_t found = clean_name.find("cplx");
+      //cout << " stoch" << stoch << " c name " << clean_name;
+      if (w)
+	{
+	  rct_order += stoch;
+	  if ( stoch == 1 )
+	    rate_law << "*" << clean_name;
+	  else
+	    rate_law << "*" <<clean_name << "^" << stoch;
+	}
+    } //rRct
+  //return rctprdUniq ;
 }
 void moose::SbmlWriter::getSubPrd(Reaction* rec,string type,string enztype,Id itrRE, int index,ostringstream& rate_law,double &rct_order,bool w,string re_enClass)
 {

@@ -41,6 +41,7 @@ class SbmlWriter
 		string cleanNameId( Id itrid,int index);
 		string parmUnit( double rct_order );
 		void getSubPrd(Reaction* rec,string type,string enztype,Id itrRE, int index,ostringstream& rate_law,double &rct_order,bool w, string re_enClass);
+		void getSubPrdrevers(Reaction* rec,string type,string enztype,Id itrRE, int index,ostringstream& rate_law,double &rct_order,bool w, string re_enClass);
 		void getModifier(ModifierSpeciesReference* mspr,vector < Id> mod, int index,ostringstream& rate_law,double &rct_order,bool w);
 		void printParameters( KineticLaw* kl,string k,double kvalue,string unit );
 		string findNotes(Id itr);
