@@ -442,8 +442,9 @@ void moose::SbmlWriter::createModel(string filename,SBMLDocument& sbmlDoc,string
 	      	//A+B --kf--> C (irreversible)KineticLaw = A*B*kf
 	      	//c --kf (Kb)--> A+B (irreversible) KineticLaw = c*kf
 	       	string fReacname = cleanReacname + "_" + "forward";
+	       	string objforwname = objname+"_forward";
 	      	reaction->setId( fReacname);
-	      	reaction->setName( objname);
+	      	reaction->setName( objforwname);
 	      	double Kf = Field<double>::get(*itrR,"numKf");
 	      	reaction->setReversible( false );
 	       	reaction->setFast( false );
@@ -467,8 +468,9 @@ void moose::SbmlWriter::createModel(string filename,SBMLDocument& sbmlDoc,string
 	      	if ( Kb != 0.0 )
 	      	{	reaction = cremodel_->createReaction(); 
 	      		string fReacname = cleanReacname + "_" + "backward";
+	      		string objbackname = objname+"_backward";
 	      		reaction->setId( fReacname);
-	      		reaction->setName( objname);
+	      		reaction->setName( objbackname);
 	      		double Kb = Field<double>::get(*itrR,"numKb");
 	      		reaction->setReversible( false );
 	       		reaction->setFast( false );
@@ -550,6 +552,7 @@ void moose::SbmlWriter::createModel(string filename,SBMLDocument& sbmlDoc,string
 	      string noteClassE;
 	      string notesE;
 	      double x,y;
+	      KineticLaw* kl;
 	      bool enzAnnoexist = false;
 	      Id annotaIdE(pathE+"/info");
 	      if (annotaIdE != Id())
@@ -571,21 +574,23 @@ void moose::SbmlWriter::createModel(string filename,SBMLDocument& sbmlDoc,string
 	      		}
 	      	}
 	      }	
-	      
-	      string groupName = getGroupinfo(*itrE);
-	      if (!groupName.empty())
-	      	{	enzGpname << "<moose:Group>"<< groupName << "</moose:Group>\n";
-	      		enzAnnoexist = true;
-	      	}
+	      	      if(simulationType)
+	      {
+	      // string groupName = getGroupinfo(*itrE);
+	      // if (!groupName.empty())
+	      // 	{	enzGpname << "<moose:Group>"<< groupName << "</moose:Group>\n";
+	      // 		enzAnnoexist = true;
+	      // 	}
 	      string objname = Field < string> :: get(*itrE,"name");
 	      objname = nameString(objname);
-	      KineticLaw* kl;
+	      
 	      if ( (enzClass == "Enz") || (enzClass == "ZombieEnz"))
 			{// Complex Formation S+E -> SE*;
 		   		reaction->setId( cleanEnzname);
-			   	reaction->setName( objname);
+		   		string objforwname = objname+"_forward";
+			   	reaction->setName( objforwname);
 			   	reaction->setFast ( false );
-			   	reaction->setReversible( true);
+			   	reaction->setReversible( false );
 			   	string enzname = Field<string> :: get(*itrE,"name");
 			   	ostringstream enzid;
 			   	enzid << (*itrE) <<"_"<<index;
@@ -596,7 +601,7 @@ void moose::SbmlWriter::createModel(string filename,SBMLDocument& sbmlDoc,string
 			   	string enzName = enzname + "_" + Objid.str();
 			   	enzName = idBeginWith( enzName );
 			   	ostringstream enzAnno;
-			   	enzAnno <<"<moose:EnzymaticReaction>";
+			   	//enzAnno <<"<moose:EnzymaticReaction>";
 			   	string groupName = getGroupinfo(*itrE);
 		       	// if (!groupName.empty())
 		       	// 	enzAnno << "<moose:Group>"<<groupName<<"</moose:Group>";
@@ -606,32 +611,56 @@ void moose::SbmlWriter::createModel(string filename,SBMLDocument& sbmlDoc,string
 		   	   	double rct_order = 0.0,prd_order=0.0;
 		   		rate_law << "k1";
 		   		getSubPrd(reaction,"enzOut","sub",*itrE,index,rate_law,rct_order,true,enzClass);
-		   		for(unsigned int i =0;i<nameList_.size();i++)
-		     		enzAnno << "<moose:enzyme>"<<nameList_[i]<<"</moose:enzyme>\n";
+		   		// for(unsigned int i =0;i<nameList_.size();i++)
+		     // 		enzAnno << "<moose:enzyme>"<<nameList_[i]<<"</moose:enzyme>\n";
 		   		getSubPrd(reaction,"sub","",*itrE,index,rate_law,rct_order,true,enzClass);
-		   		for (unsigned int i =0;i<nameList_.size();i++)
-		     		enzAnno << "<moose:substrates>"<<nameList_[i]<<"</moose:substrates>\n";
+		   		// for (unsigned int i =0;i<nameList_.size();i++)
+		     // 		enzAnno << "<moose:substrates>"<<nameList_[i]<<"</moose:substrates>\n";
+		   		//cout << "\n rate_law " << rate_law.str();
 		   		// product 
-		   		rate_law << "-" << "k2";
-		   		getSubPrd(reaction,"cplxDest","prd",*itrE,index,rate_law,prd_order,true,enzClass);
-		   		for(unsigned int i =0;i<nameList_.size();i++)
-		     		enzAnno << "<moose:product>"<<nameList_[i]<<"</moose:product>\n";
+		   		ostringstream rate_law_b;
+		   		rate_law_b << "k2";
+
+		   		getSubPrd(reaction,"cplxDest","prd",*itrE,index,rate_law_b,prd_order,true,enzClass);
+		   		// ostringstream rate_law_discard;
+		   		// getSubPrdrevers(reaction,"prd","",*itrE,index,rate_law_discard,rct_order,true,enzClass);
+	      // 		getSubPrdrevers(reaction,"prd","",*itrE,index,rate_law_discard,rct_order,true,enzClass);
+		   		//cout << "\n rate_law_b " << rate_law_b.str()<<endl;
+		   		// for(unsigned int i =0;i<nameList_.size();i++)
+		     // 		enzAnno << "<moose:product>"<<nameList_[i]<<"</moose:product>\n";
 		   		
-		   		enzAnno <<"<moose:groupName>"<<enzName<<"</moose:groupName>\n";
-		   		enzAnno << "<moose:stage>1</moose:stage> \n";
+		   		// enzAnno <<"<moose:groupName>"<<enzName<<"</moose:groupName>\n";
+		   		// enzAnno << "<moose:stage>1</moose:stage> \n";
 		   		// if (!enzGpname.str().empty())
 	  				// enzAnno << enzGpname.str();
-	  			if (!enzxyCord.str().empty())
-	  				enzAnno <<enzxyCord.str();
-		   		enzAnno << "</moose:EnzymaticReaction>";
+	  			// if (!enzxyCord.str().empty())
+	  			// 	enzAnno <<enzxyCord.str();
+		   	// 	enzAnno << "</moose:EnzymaticReaction>";
 
-		   		XMLNode* xnode =XMLNode::convertStringToXMLNode( enzAnno.str() ,&xmlns);
-		   		reaction->setAnnotation( xnode );	
+		   		// XMLNode* xnode =XMLNode::convertStringToXMLNode( enzAnno.str() ,&xmlns);
+		   		// reaction->setAnnotation( xnode );	
 		   		kl = reaction->createKineticLaw();
 		   		kl->setFormula( rate_law.str() );
 		   		string unit=parmUnit( rct_order-1 );
 		   		printParameters( kl,"k1",k1,unit ); 
-		   		string punit=parmUnit( prd_order-1 );
+		   		reaction = cremodel_->createReaction();
+		   		string EnzName_back = cleanEnzname +"_back";
+		   		reaction->setId( EnzName_back);
+		   		string objbackname = objname+"_back";
+			   	reaction->setName( objbackname);
+			   	reaction->setFast ( false );
+			   	reaction->setReversible( false );
+			   	//getSubPrdrevers(reaction,"enzOut","sub",*itrE,index,rate_law,rct_order,true,enzClass);
+		   		//getSubPrdrevers(reaction,"sub","",*itrE,index,rate_law,rct_order,true,enzClass);
+		   		ostringstream rate_law_bb ;
+		   		rate_law_bb<< "k2";
+		   		double prd_order1 = 0.0;
+		   		getSubPrd(reaction,"cplxDest","sub",*itrE,index,rate_law_bb,prd_order1,true,enzClass);
+		   		getSubPrdrevers(reaction,"enzOut","prd",*itrE,index,rate_law,rct_order,true,enzClass);
+		   		getSubPrdrevers(reaction,"prd","",*itrE,index,rate_law,rct_order,true,enzClass);
+		   		kl = reaction->createKineticLaw();
+		   		kl->setFormula( rate_law_bb.str() );
+		   		string punit=parmUnit( prd_order1-1 );
 		   		printParameters( kl,"k2",k2,punit ); 
 		   		// 2 Stage SE* -> E+P  
 		   
@@ -654,28 +683,13 @@ void moose::SbmlWriter::createModel(string filename,SBMLDocument& sbmlDoc,string
 		   		double erct_order = 0.0,eprd_order = 0.0;
 		   		ostringstream enzrate_law;
 		   		enzrate_law << "k3";
-		   		string enzAnno2 = "<moose:EnzymaticReaction>";
-		   		
 		   		getSubPrd(reaction,"cplxDest","sub",*itrE,index,enzrate_law,erct_order,true,enzClass);
-		   		for(unsigned int i =0;i<nameList_.size();i++)
-		     		enzAnno2 +=  "<moose:complex>"+nameList_[i]+"</moose:complex>\n";
-		   		
 		   		getSubPrd(reaction,"enzOut","prd",*itrE,index,enzrate_law,eprd_order,false,enzClass);
-		   		for(unsigned int i =0;i<nameList_.size();i++)
-		     		enzAnno2 += "<moose:enzyme>"+nameList_[i]+"</moose:enzyme>\n";
-		   
 		   		getSubPrd(reaction,"prd","",*itrE,index,enzrate_law,eprd_order,false,enzClass);
-		   		for(unsigned int i =0;i<nameList_.size();i++)
-		     		enzAnno2 += "<moose:product>"+nameList_[i]+"</moose:product>\n";
-		   		
-		   		enzAnno2 += "<moose:groupName>"+enzName+"</moose:groupName>\n";
-		   		enzAnno2 += "<moose:stage>2</moose:stage> \n";
-		   		enzAnno2 += "</moose:EnzymaticReaction>";
-		   		XMLNode* xnode2 =XMLNode::convertStringToXMLNode( enzAnno2 ,&xmlns);
-		   		reaction->setAnnotation( xnode2 );	
 		   		kl = reaction->createKineticLaw();
 		   		kl->setFormula( enzrate_law.str() );
 		   		printParameters( kl,"k3",k3,"per_second" );
+		   	}
 		   	} //enzclass = Enz
 	      else if ( (enzClass == "MMenz") || (enzClass == "ZombieMMenz"))
 			{ 
@@ -816,10 +830,15 @@ void moose::SbmlWriter::getSubPrdrevers(Reaction* rec,string type,string enztype
   nameList_.clear();
   SpeciesReference* spr;
   ModifierSpeciesReference * mspr;
-  if (type == "prd")
+  if(type == "enzOut" and  enztype == "sub")
+  	enztype = "prd";
+  else if(type == "enzOut" and  enztype == "prd")
+  	enztype = "sub";
+  else if (type == "prd")
   	type = "sub"; 
   else
   	type = "prd";
+
 
   vector < Id > rct = LookupField <string,vector < Id> >::get(itrRE, "neighbors",type);
   std::set < Id > rctprdUniq;
